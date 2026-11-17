@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ontario SUV Finder</title><style>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#172b40;background:#f4f7fb}*{box-sizing:border-box}
+body{margin:0}header{background:#102d46;color:white;padding:30px max(22px,calc((100% - 1200px)/2))}
+h1{margin:0 0 6px;font-size:32px}header p{margin:0;color:#c7d8e7}.wrap{max-width:1200px;margin:auto;padding:24px}
+.panel{background:white;border:1px solid #e1e7ed;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 2px 12px #183b5210}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px}label{font-size:13px;font-weight:650;display:block}
+input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:8px;background:white;margin-top:6px;font-size:14px}
+h2{font-size:19px;margin:0 0 15px}.stats{display:flex;gap:18px;flex-wrap:wrap;color:#415a70;font-size:14px;margin-bottom:15px}
+table{border-collapse:collapse;width:100%;min-width:1000px}th,td{padding:12px;text-align:left;border-bottom:1px solid #e7edf2;font-size:13px}
+th{background:#f2f6fa;position:sticky;top:0;cursor:pointer}th:hover{background:#e5edf5}
+td img{width:110px;height:75px;object-fit:cover;border-radius:7px;background:#edf1f5}
+.tablewrap{overflow:auto}a{color:#0869b0}small{color:#6a7e91}.notice{padding:18px;border:1px dashed #b6c6d5;border-radius:10px;background:#f8fafc;line-height:1.6}
+</style></head><body>
+<header><h1>🚙 Ontario SUV Finder</h1><p>New & used SUVs under CA$35,000 · Automatic · Gas or conventional hybrid · Ontario</p></header>
+<main class="wrap"><section class="panel"><h2>Search & financing</h2><div class="controls">
+<label>Search brand or model<input id="search" placeholder="Toyota RAV4, Honda CR-V…"></label>
+<label>Condition<select id="condition"><option value="">New & used</option><option>New</option><option>Used</option></select></label>
+<label>Fuel<select id="fuel"><option value="">Gas & hybrid</option><option value="gas">Gas</option><option value="hybrid">Hybrid</option></select></label>
+<label>Max price (CAD)<input id="maxPrice" type="number" value="35000" max="35000" min="0"></label>
+<label>Down payment (CAD)<input id="down" type="number" value="0" min="0"></label>
+<label>APR (%) fallback<input id="apr" type="number" value="7.99" min="0" step=".01"></label>
+<label>Loan term (months)<select id="months"><option>36</option><option>48</option><option selected>60</option><option>72</option><option>84</option></select></label>
+<label>Sort by<select id="sort"><option value="price">Lowest cash price</option><option value="weekly">Lowest weekly payment</option><option value="year">Newest year</option><option value="mileage">Lowest mileage</option></select></label>
+</div></section>
+<section class="panel"><div class="stats"><strong id="count">Loading inventory…</strong><span id="updated"></span><span>Refreshes data every 30 minutes while open</span></div>
+<div class="tablewrap"><table><thead><tr><th>Vehicle image</th><th>Car brand</th><th>Model / year</th><th>Condition</th><th>Mileage</th><th>Fuel</th><th>Cost</th><th>Financing rate</th><th>Financing / week</th><th>Price in cash</th><th>Website link</th></tr></thead><tbody id="results"></tbody></table></div>
+<div id="empty" class="notice" hidden>No matching SUVs available in the connected inventory. A licensed live inventory feed has not been connected yet; this website does not invent vehicle listings.</div>
+</section><p><small>Prices in CAD. Weekly payments are estimates based on the listed APR (or your fallback APR), loan term, down payment, and 13% Ontario HST; they exclude lender fees and other charges. Advertised rates may depend on credit approval. The scheduled GitHub refresh is best-effort, not guaranteed to run exactly every 30 minutes.</small></p></main>
+<script>
+let inventory=[];
+const ids=['search','condition','fuel','maxPrice','down','apr','months','sort'];
+const money=n=>new Intl.NumberFormat('en-CA',{style:'currency',currency:'CAD',maximumFractionDigits:0}).format(n);
+const value=id=>document.getElementById(id).value;
+function weekly(v){let p=Math.max(0,Number(v.price)*1.13-Number(value('down')||0)),annual=Number(v.financingRate??value('apr'))/100,months=Number(value('months')),r=annual/12;return (r?p*r/(1-Math.pow(1+r,-months)):p/months)*12/52}
+function render(){
+const query=value('search').trim().toLowerCase(),max=Math.min(35000,Number(value('maxPrice')||35000));
+let list=inventory.filter(v=>Number(v.price)<35000&&Number(v.price)<=max&&(!query||[v.brand,v.make,v.model,v.year].join(' ').toLowerCase().includes(query))&&(!value('condition')||String(v.condition).toLowerCase()===value('condition').toLowerCase())&&(!value('fuel')||String(v.fuel||v.fuelType).toLowerCase().includes(value('fuel'))));
+let sort=value('sort');list.sort((a,b)=>sort==='year'?Number(b.year)-Number(a.year):sort==='mileage'?Number(a.mileageKm)-Number(b.mileageKm):sort==='weekly'?weekly(a)-weekly(b):Number(a.price)-Number(b.price));
+document.getElementById('count').textContent=list.length+' matching SUVs';
+document.getElementById('empty').hidden=list.length>0;
+const tbody=document.getElementById('results');tbody.replaceChildren();
+for(const v of list){let tr=document.createElement('tr');let fields=['image','brand','model','condition','mileageKm','fuel','price','financingRate','weekly','cash','url'];
+for(const field of fields){let td=document.createElement('td');let s=field==='brand'?(v.brand||v.make||'—'):field==='model'?(v.year||'')+' '+(v.model||''):field==='mileageKm'?(Number(v.mileageKm||0).toLocaleString()+' km'):field==='fuel'?(v.fuel||v.fuelType||'—'):field==='price'||field==='cash'?money(v.price):field==='financingRate'?(v.financingRate==null?'Est. '+value('apr')+'%':v.financingRate+'%'):field==='weekly'?money(weekly(v)):String(v[field]??'—');
+if(field==='image'&&v.imageUrl){let img=document.createElement('img');img.src=v.imageUrl;img.alt=s;img.loading='lazy';td.append(img)}
+else if(field==='url'&&/^https:\/\//.test(v.url||'')){let a=document.createElement('a');a.href=v.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='View listing';td.append(a)}
+else td.textContent=s;tr.append(td)}tbody.append(tr)}
+}
+async function load(){try{let r=await fetch('listings.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('Fetch failed');let data=await r.json();inventory=data.listings||[];document.getElementById('updated').textContent=data.updatedAt?'Inventory updated: '+new Date(data.updatedAt).toLocaleString('en-CA'):'Inventory feed not connected';render()}catch(e){document.getElementById('count').textContent='Unable to load inventory';document.getElementById('empty').hidden=false}}
+ids.forEach(id=>document.getElementById(id).addEventListener('input',render));load();setInterval(load,30*60*1000);
+</script></body></html>
