@@ -1,0 +1,26 @@
+name: Refresh SUV inventory
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refresh authorized inventory
+        env:
+          INVENTORY_FEED_URL: ${{ secrets.INVENTORY_FEED_URL }}
+          INVENTORY_FEED_TOKEN: ${{ secrets.INVENTORY_FEED_TOKEN }}
+        run: python update_inventory.py
+      - name: Commit results
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add listings.json
+          git diff --cached --quiet || (git commit -m 'Refresh inventory' && git push)
