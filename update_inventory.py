@@ -1,16 +1,24 @@
 """Refresh Ontario SUV listings from an authorized HTTPS JSON feed."""
 import os,json,datetime,urllib.request
 from pathlib import Path
-url=os.getenv("INVENTORY_FEED_URL","").strip()
-if not url:
+urls=[u.strip() for u in os.getenv("INVENTORY_FEED_URLS",os.getenv("INVENTORY_FEED_URL","")).replace("\\n",",").split(",") if u.strip()]
+if not urls:
     print("No authorized inventory feed configured; leaving listings unchanged.")
     raise SystemExit(0)
-if not url.startswith("https://"): raise SystemExit("Feed must use HTTPS")
+
 headers={"Accept":"application/json","User-Agent":"OntarioSUVFinder/1.0"}
 if os.getenv("INVENTORY_FEED_TOKEN"): headers["Authorization"]="Bearer "+os.environ["INVENTORY_FEED_TOKEN"]
-with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=45) as response: payload=json.load(response)
-items=payload if isinstance(payload,list) else payload.get("listings",payload.get("vehicles",payload.get("results",[])))
-if not isinstance(items,list): raise SystemExit("Invalid feed format")
+items=[]
+for url in urls:
+    if not url.startswith("https://"): raise SystemExit("Feed must use HTTPS")
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=45) as response:
+            payload=json.load(response)
+        records=payload if isinstance(payload,list) else payload.get("listings",payload.get("vehicles",payload.get("results",[])))
+        if not isinstance(records,list): raise ValueError("Invalid feed format")
+        items.extend(records)
+    except Exception as exc:
+        raise SystemExit(f"Feed refresh failed for {url.split('?')[0]}: {type(exc).__name__}") from exc
 def eligible(v):
     try:
         price=float(v["price"]); km=float(v.get("mileageKm",0))
@@ -25,6 +33,11 @@ def eligible(v):
                      or ("hybrid" in fuel and "plug" not in fuel and "phev" not in fuel))
                 and ("automatic" in transmission or transmission in ("cvt","e-cvt")))
     except (KeyError,ValueError,TypeError): return False
-result={"updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat(),"listings":[v for v in items if isinstance(v,dict) and eligible(v)]}
+unique={}
+for v in items:
+    if not isinstance(v,dict) or not eligible(v): continue
+    key=str(v.get("vin") or v.get("VIN") or v.get("url") or v.get("listingUrl") or "")
+    if key: unique[key]=v
+result={"updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat(),"listings":list(unique.values())}
 Path("listings.json").write_text(json.dumps(result,ensure_ascii=False)+"\n",encoding="utf-8")
 print("Eligible SUVs:",len(result["listings"]))
