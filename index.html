@@ -13,7 +13,7 @@ th{background:#f2f6fa;position:sticky;top:0;cursor:pointer}th:hover{background:#
 td img{width:110px;height:75px;object-fit:cover;border-radius:7px;background:#edf1f5}
 .tablewrap{overflow:auto}a{color:#0869b0}small{color:#6a7e91}.notice{padding:18px;border:1px dashed #b6c6d5;border-radius:10px;background:#f8fafc;line-height:1.6}
 </style></head><body>
-<header><h1>🚙 Ontario SUV Finder</h1><p>New & used SUVs under CA$35,000 · Automatic · Gas or conventional hybrid · Ontario</p></header>
+<header><h1>🚙 Ontario SUV Finder</h1><p>New & used SUVs under CA$35,000 · Automatic · Gas or conventional hybrid · Ontario</p><button type="button" onclick="document.getElementById('searchBtn').click()" style="display:block;margin-top:18px;background:#fff;color:#102d46;border:0;border-radius:9px;padding:14px 28px;font-size:17px;font-weight:800;cursor:pointer">🔎 Search SUVs</button></header>
 <main class="wrap"><section class="panel"><h2>Search & financing</h2><div class="controls">
 <label>Search brand or model<input id="search" placeholder="Toyota RAV4, Honda CR-V…"></label>
 <label>Condition<select id="condition"><option value="">New & used</option><option>New</option><option>Used</option></select></label>
@@ -53,7 +53,7 @@ else td.textContent=s;tr.append(td)}tbody.append(tr)}
 }
 async function load(){try{let r=await fetch('listings.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('Fetch failed');let data=await r.json();inventory=data.listings||[];document.getElementById('updated').textContent=data.updatedAt?'Inventory updated: '+new Date(data.updatedAt).toLocaleString('en-CA'):'Inventory feed not connected';render()}catch(e){document.getElementById('count').textContent='Unable to load inventory';document.getElementById('empty').hidden=false}}
 ids.forEach(id=>document.getElementById(id).addEventListener('input',render));
-document.getElementById('searchBtn').addEventListener('click',async()=>{const b=document.getElementById('searchBtn'),status=document.getElementById('searchStatus');b.disabled=true;b.textContent='Searching…';status.textContent='Checking live marketplace inventory…';try{await load();await liveSearch();status.textContent=inventory.length+' vehicles loaded from available sources';}catch(e){status.textContent='Live search unavailable; showing saved inventory.';}finally{b.disabled=false;b.textContent='🔎 Search SUVs';}});
+document.getElementById('searchBtn').addEventListener('click',async()=>{const b=document.getElementById('searchBtn'),status=document.getElementById('searchStatus');b.disabled=true;b.textContent='Searching…';status.textContent='Checking live marketplace inventory…';try{await load();await liveSearch();status.textContent=inventory.length+' saved or verified vehicles loaded';}catch(e){status.textContent='External inventory unavailable. No new vehicles were added.';}finally{b.disabled=false;b.textContent='🔎 Search SUVs';}});
 async function liveSearch(){
  const qs=new URLSearchParams({limit:'100',lang:'en',sort:'newest'});
  const q=value('search').trim();if(q)qs.set('make',q.split(/\\s+/)[0]);
