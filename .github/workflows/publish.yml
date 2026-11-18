@@ -18,8 +18,11 @@ jobs:
           INVENTORY_FEED_URL: ${{ secrets.INVENTORY_FEED_URL }}
           INVENTORY_FEED_TOKEN: ${{ secrets.INVENTORY_FEED_TOKEN }}
         run: |
-          python dealersway_sync.py
-          python update_inventory.py
+          if [ -n "$INVENTORY_FEED_URL" ]; then
+            python update_inventory.py
+          else
+            python dealersway_sync.py
+          fi
       - name: Commit results
         run: |
           git config user.name 'github-actions[bot]'
